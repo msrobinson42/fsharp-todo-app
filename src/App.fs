@@ -1,32 +1,54 @@
 module App
 
+open System
 open Elmish
 open Elmish.React
 open Feliz
 
 type Todo = {
-  Id : int
+  Id : Guid
   Description : string
   Completed : bool
 }
 
+type TodoBeingEdited = {
+  Id: Guid
+  Description: string
+}
+
+type ListFilterKind = All | Completed | Incompleted
+type ListFilterPredicate = Todo -> bool
+type ListFilter = {
+  Kind: ListFilterKind
+  Predicate: ListFilterPredicate
+}
+
 type State = { 
   NewTodo : string
-  TodoList : Todo list 
+  TodoList : Todo list
+  TodoBeingEdited: TodoBeingEdited option
+  ListFilter: ListFilter
 }
 
 type Msg =
     | SetNewTodo of string
     | AddNewTodo
-    | ToggleCompleted of int
-    | DeleteTodo of int
+    | ToggleCompleted of Guid
+    | DeleteTodo of Guid
+    | CancelEdit
+    | ApplyEdit
+    | StartEditingTodo of Guid
+    | SetEditedDescription of string
+    | SetListFilter of ListFilterKind
 
 let init() =
     { TodoList = [ 
-        {Id = 1; Description = "Learn F#"; Completed = true }
-        {Id = 2; Description = "Learn Elmish"; Completed = false }
+        {Id = Guid.NewGuid(); Description = "Learn F#"; Completed = true }
+        {Id = Guid.NewGuid(); Description = "Learn Elmish"; Completed = false }
       ]
-      NewTodo = "" }
+      NewTodo = ""
+      TodoBeingEdited = None
+      ListFilter = {Kind = All; Predicate = fun _ -> true } }
 
 let update (msg: Msg) (state: State): State =
     match msg with
@@ -54,22 +76,55 @@ let update (msg: Msg) (state: State): State =
       state
 
     | AddNewTodo ->
-      let nextTodoId =
-        match state.TodoList with
-        | [ ] -> 1
-        | elems -> 
-          elems
-          |> List.maxBy (fun todo -> todo.Id)
-          |> fun todo -> todo.Id + 1
-
       let nextTodo =
-        { Id = nextTodoId
+        { Id = Guid.NewGuid()
           Description = state.NewTodo
           Completed = false }
 
       { state with 
           NewTodo = ""
           TodoList = List.append state.TodoList [nextTodo] }
+
+    | StartEditingTodo todoId ->
+      let nextEditModel =
+        state.TodoList
+        |> List.tryFind (fun todo -> todo.Id = todoId)
+        |> Option.map (fun todo -> { Id = todoId; Description = todo.Description })
+      
+      { state with TodoBeingEdited = nextEditModel }
+
+    | CancelEdit ->
+      { state with TodoBeingEdited = None }
+
+    | ApplyEdit ->
+      match state.TodoBeingEdited with
+      | None -> state
+      | Some todoBeingEdited when todoBeingEdited.Description = "" -> state
+      | Some todoBeingEdited ->
+        let nextTodoList =
+          state.TodoList
+          |> List.map (fun todo -> 
+            if todo.Id = todoBeingEdited.Id
+            then { todo with Description = todoBeingEdited.Description }
+            else todo)
+          
+        { state with TodoList = nextTodoList; TodoBeingEdited = None }
+
+    | SetEditedDescription newText ->
+      let nextEditModel =
+        state.TodoBeingEdited
+        |> Option.map (fun todoBeingEdited -> { todoBeingEdited with Description = newText })
+
+      { state with TodoBeingEdited = nextEditModel }
+
+    | SetListFilter filterKind ->
+      let predicate: ListFilterPredicate =
+        match filterKind with
+        | All -> fun _ -> true
+        | Completed -> fun todo -> todo.Completed
+        | Incompleted -> fun todo -> not todo.Completed
+
+      { state with ListFilter = { Kind = filterKind; Predicate = predicate } }
 
 let div (classes: string list) (children: Fable.React.ReactElement list) =
   Html.div [
@@ -112,6 +167,41 @@ let inputField (state: State) (dispatch: Msg -> unit) =
     ]
   ]
 
+let renderFilterTabs (state: State) (dispatch: Msg -> unit) =
+  div [ "tabs"; "is-toggle"; "is-fullwidth" ] [
+    Html.ul [
+      Html.li [
+        prop.onClick (fun _ -> dispatch (SetListFilter All))
+        prop.className (if state.ListFilter.Kind = All then "is-active" else "")
+        prop.children [
+          Html.a [
+            prop.text "All"
+          ]
+        ]
+      ]
+
+      Html.li [
+        prop.onClick (fun _ -> dispatch (SetListFilter Completed))
+        prop.className (if state.ListFilter.Kind = Completed then "is-active" else "")
+        prop.children [
+          Html.a [
+            prop.text "Completed"
+          ]
+        ]
+      ]
+
+      Html.li [
+        prop.onClick (fun _ -> dispatch (SetListFilter Incompleted))
+        prop.className (if state.ListFilter.Kind = Incompleted then "is-active" else "")
+        prop.children [
+          Html.a [
+            prop.text "Not Completed"
+          ]
+        ]
+      ]
+    ]
+  ]
+
 let todoList (state: State) (dispatch: Msg -> unit) =
   let renderTodo (dispatch: Msg -> unit) (todo: Todo) =
     div [ "box" ] [
@@ -134,6 +224,14 @@ let todoList (state: State) (dispatch: Msg -> unit) =
             ]
 
             Html.button [
+              prop.classes [ "button"; "is-primary" ]
+              prop.onClick (fun _ -> dispatch (StartEditingTodo todo.Id))
+              prop.children [
+                Html.i [ prop.classes [ "fa"; "fa-edit" ] ]
+              ]
+            ]
+
+            Html.button [
               prop.classes [ "button"; "is-danger" ]
               prop.onClick (fun _ -> dispatch (DeleteTodo todo.Id))
               prop.children [
@@ -145,8 +243,48 @@ let todoList (state: State) (dispatch: Msg -> unit) =
       ]
     ]
 
+  let renderEditForm (dispatch: Msg -> unit) (todoBeingEdited: TodoBeingEdited) =
+    div [ "box" ] [
+      div [ "field"; "is-grouped" ] [
+        div [ "control"; "is-expanded" ] [
+          Html.input [
+            prop.classes [ "input"; "is-medium" ]
+            prop.valueOrDefault todoBeingEdited.Description
+            prop.onTextChange (SetEditedDescription >> dispatch)
+          ]
+        ]
+
+        div [ "control"; "buttons" ] [
+          Html.button [
+            prop.classes [ "button"; "is-primary" ]
+            prop.onClick (fun _ -> dispatch ApplyEdit)
+            prop.children [
+              Html.i [ prop.classes [ "fa"; "fa-save" ] ]
+            ]
+          ]
+
+          Html.button [
+            prop.classes [ "button"; "is-warning" ]
+            prop.onClick (fun _ -> dispatch CancelEdit)
+            prop.children [
+              Html.i [ prop.classes [ "fa"; "fa-arrow-right" ] ]
+            ]
+          ]
+        ]
+      ]
+    ]
+
+  let filteredTodos = state.TodoList |> List.filter state.ListFilter.Predicate
+
   Html.ul [
-    prop.children (List.map (renderTodo dispatch) state.TodoList)
+    prop.children [
+      for todo in filteredTodos ->
+        match state.TodoBeingEdited with
+        | Some todoBeingEdited when todoBeingEdited.Id = todo.Id ->
+          renderEditForm dispatch todoBeingEdited
+        | otherwise ->
+          renderTodo dispatch todo
+    ]
   ]
 
 let render (state: State) (dispatch: Msg -> unit) =
@@ -155,6 +293,7 @@ let render (state: State) (dispatch: Msg -> unit) =
     prop.children [
       appTitle
       inputField state dispatch
+      renderFilterTabs state dispatch
       todoList state dispatch
     ]
   ]
