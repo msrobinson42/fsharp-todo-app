@@ -3,6 +3,8 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Types.domain.fs" />
+    <Compile Include="Types.ui.fs" />
     <Compile Include="ApplicationStyles.fs" />
     <Compile Include="App.fs" />
   </ItemGroup>
