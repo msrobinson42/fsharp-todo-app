@@ -151,32 +151,32 @@ let div (classes: string list) (children: Fable.React.ReactElement list) =
 
 let appTitle =
   Html.p [
-    prop.className "title"
+    prop.className Bulma.Title
     prop.text "Elmish To-Do List"
   ]
 
 let inputField (state: State) (dispatch: Msg -> unit) =
   Html.div [
-    prop.classes [ "field"; "has-addons" ]
+    prop.classes [ Bulma.Field; Bulma.HasAddons ]
     prop.children [
       Html.div [
-        prop.classes [ "control"; "is-expanded" ]
+        prop.classes [ Bulma.Control; Bulma.IsExpanded ]
         prop.children [
           Html.input [
-            prop.classes [ "input"; "is-medium" ]
+            prop.classes [ Bulma.Input; Bulma.IsMedium ]
             prop.valueOrDefault state.NewTodo
             prop.onChange (SetNewTodo >> dispatch)
           ]
         ]
       ]
       Html.div [
-        prop.className "control"
+        prop.className Bulma.Control
         prop.children [
           Html.button [
-            prop.classes [ "button"; "is-primary"; "is-medium" ]
+            prop.classes [ Bulma.Button; Bulma.IsPrimary; Bulma.IsMedium ]
             prop.onClick (fun _ -> dispatch AddNewTodo)
             prop.children [
-              Html.i [ prop.classes [ "fa"; "fa-plus" ] ]
+              Html.i [ prop.classes [ FA.Fa; "fa-plus" ] ]
             ]
           ]
         ]
@@ -189,7 +189,7 @@ let renderFilterTabs (state: State) (dispatch: Msg -> unit) =
     Html.ul [
       Html.li [
         prop.onClick (fun _ -> dispatch (SetListFilter All))
-        prop.className (if state.ListFilter.Kind = All then "is-active" else "")
+        prop.className (if state.ListFilter.Kind = All then Bulma.IsActive else "")
         prop.children [
           Html.a [
             prop.text "All"
@@ -199,7 +199,7 @@ let renderFilterTabs (state: State) (dispatch: Msg -> unit) =
 
       Html.li [
         prop.onClick (fun _ -> dispatch (SetListFilter Completed))
-        prop.className (if state.ListFilter.Kind = Completed then "is-active" else "")
+        prop.className (if state.ListFilter.Kind = Completed then Bulma.IsActive else "")
         prop.children [
           Html.a [
             prop.text "Completed"
@@ -209,7 +209,7 @@ let renderFilterTabs (state: State) (dispatch: Msg -> unit) =
 
       Html.li [
         prop.onClick (fun _ -> dispatch (SetListFilter Incompleted))
-        prop.className (if state.ListFilter.Kind = Incompleted then "is-active" else "")
+        prop.className (if state.ListFilter.Kind = Incompleted then Bulma.IsActive else "")
         prop.children [
           Html.a [
             prop.text "Not Completed"
@@ -221,38 +221,38 @@ let renderFilterTabs (state: State) (dispatch: Msg -> unit) =
 
 let todoList (state: State) (dispatch: Msg -> unit) =
   let renderTodo (dispatch: Msg -> unit) (todo: Todo) =
-    div [ "box" ] [
-      div [ "columns"; "is-mobile"; "is-vcentered" ] [
-        div [ "column" ] [
+    div [ Bulma.Box ] [
+      div [ Bulma.Columns; Bulma.IsMobile; Bulma.IsVcentered ] [
+        div [ Bulma.Column ] [
           Html.p [
-            prop.className "subtitle"
+            prop.className Bulma.Subtitle
             prop.text todo.Description
           ]
         ]
 
-        div [ "column"; "is-narrow" ] [
-          div [ "buttons" ] [
+        div [ Bulma.Column; Bulma.IsNarrow ] [
+          div [ Bulma.Buttons ] [
             Html.button [
-              prop.classes [ "button"; if todo.Completed then "is-success" ]
+              prop.classes [ Bulma.Button; if todo.Completed then Bulma.IsSuccess ]
               prop.onClick (fun _ -> dispatch (ToggleCompleted todo.Id))
               prop.children [
-                Html.i [ prop.classes [ "fa"; "fa-check" ] ]
+                Html.i [ prop.classes [ FA.Fa; FA.FaCheck ] ]
               ]
             ]
 
             Html.button [
-              prop.classes [ "button"; "is-primary" ]
+              prop.classes [ Bulma.Button; Bulma.IsPrimary ]
               prop.onClick (fun _ -> dispatch (StartEditingTodo todo.Id))
               prop.children [
-                Html.i [ prop.classes [ "fa"; "fa-edit" ] ]
+                Html.i [ prop.classes [ FA.Fa; FA.FaEdit ] ]
               ]
             ]
 
             Html.button [
-              prop.classes [ "button"; "is-danger" ]
+              prop.classes [ Bulma.Button; Bulma.IsDanger ]
               prop.onClick (fun _ -> dispatch (DeleteTodo todo.Id))
               prop.children [
-                Html.i [ prop.classes [ "fa"; "fa-times" ] ]
+                Html.i [ prop.classes [ FA.Fa; FA.FaTimes ] ]
               ]
             ]
           ]
@@ -271,30 +271,30 @@ let todoList (state: State) (dispatch: Msg -> unit) =
 
     let setEditedDescriptionFromString text = SetEditedDescription (currentId, text)
       
-    div [ "box" ] [
-      div [ "field"; "is-grouped" ] [
-        div [ "control"; "is-expanded" ] [
+    div [ Bulma.Box ] [
+      div [ Bulma.Field; Bulma.IsGrouped ] [
+        div [ Bulma.Control; Bulma.IsExpanded ] [
           Html.input [
-            prop.classes [ "input"; "is-medium" ]
+            prop.classes [ Bulma.Input; Bulma.IsMedium ]
             prop.valueOrDefault todoBeingEdited.Description
             prop.onTextChange (setEditedDescriptionFromString >> dispatch)
           ]
         ]
 
-        div [ "control"; "buttons" ] [
+        div [ Bulma.Control; Bulma.Buttons ] [
           Html.button [
-            prop.classes [ "button"; if not hasSameDescription then "is-primary" ]
+            prop.classes [ Bulma.Button; if not hasSameDescription then Bulma.IsPrimary ]
             prop.onClick (fun _ -> dispatch (ApplyEdit currentId))
             prop.children [
-              Html.i [ prop.classes [ "fa"; "fa-save" ] ]
+              Html.i [ prop.classes [ FA.Fa; FA.FaSave ] ]
             ]
           ]
 
           Html.button [
-            prop.classes [ "button"; "is-warning" ]
+            prop.classes [ Bulma.Button; Bulma.IsWarning; ]
             prop.onClick (fun _ -> dispatch (CancelEdit currentId))
             prop.children [
-              Html.i [ prop.classes [ "fa"; "fa-arrow-right" ] ]
+              Html.i [ prop.classes [ FA.Fa; FA.FaArrowRight; ] ]
             ]
           ]
         ]
