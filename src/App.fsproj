@@ -3,9 +3,16 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="ApplicationStyles.fs" />
     <Compile Include="Types.domain.fs" />
     <Compile Include="Types.ui.fs" />
-    <Compile Include="ApplicationStyles.fs" />
+    <Compile Include="Utilities.fs" />
+    <Compile Include="Component.util.fs" />
+    <Compile Include="Component.header.fs" />
+    <Compile Include="Component.todoInput.fs" />
+    <Compile Include="Component.tabs.fs" />
+    <Compile Include="Component.todoList.fs" />
+    <Compile Include="Update.todo.fs" />
     <Compile Include="App.fs" />
   </ItemGroup>
   <ItemGroup>
