@@ -26,7 +26,7 @@ type ListFilter = {
 type State = { 
   NewTodo : string
   TodoList : Todo list
-  TodoBeingEdited: TodoBeingEdited option
+  TodosBeingEdited: TodoBeingEdited list
   ListFilter: ListFilter
 }
 
@@ -35,10 +35,10 @@ type Msg =
     | AddNewTodo
     | ToggleCompleted of Guid
     | DeleteTodo of Guid
-    | CancelEdit
-    | ApplyEdit
+    | CancelEdit of Guid
+    | ApplyEdit of Guid
     | StartEditingTodo of Guid
-    | SetEditedDescription of string
+    | SetEditedDescription of (Guid * string)
     | SetListFilter of ListFilterKind
 
 let init() =
@@ -47,7 +47,7 @@ let init() =
         {Id = Guid.NewGuid(); Description = "Learn Elmish"; Completed = false }
       ]
       NewTodo = ""
-      TodoBeingEdited = None
+      TodosBeingEdited = [ ]
       ListFilter = {Kind = All; Predicate = fun _ -> true } }
 
 let update (msg: Msg) (state: State): State =
@@ -90,32 +90,49 @@ let update (msg: Msg) (state: State): State =
         state.TodoList
         |> List.tryFind (fun todo -> todo.Id = todoId)
         |> Option.map (fun todo -> { Id = todoId; Description = todo.Description })
+        |> Option.toList
       
-      { state with TodoBeingEdited = nextEditModel }
+      { state with TodosBeingEdited = state.TodosBeingEdited @ nextEditModel }
 
-    | CancelEdit ->
-      { state with TodoBeingEdited = None }
+    | CancelEdit todoId ->
+      let filteredTodosBeingEdited =
+        state.TodosBeingEdited
+        |> List.filter (fun todo -> todo.Id <> todoId)
 
-    | ApplyEdit ->
-      match state.TodoBeingEdited with
-      | None -> state
-      | Some todoBeingEdited when todoBeingEdited.Description = "" -> state
-      | Some todoBeingEdited ->
+      { state with TodosBeingEdited = filteredTodosBeingEdited }
+
+    | ApplyEdit todoId ->
+      let todoBeingEdited =
+        state.TodosBeingEdited
+        |> List.tryFind (fun todo -> todo.Id = todoId)
+
+      match (state.TodosBeingEdited, todoBeingEdited) with
+      | ([ ], _) -> state
+      | (_, None) -> state
+      | (_, Some todoBeingEdited) when todoBeingEdited.Description = "" -> state
+      | (todosBeingEdited, Some todoBeingEdited) ->
         let nextTodoList =
           state.TodoList
           |> List.map (fun todo -> 
             if todo.Id = todoBeingEdited.Id
             then { todo with Description = todoBeingEdited.Description }
             else todo)
+
+        let nextEditedList =
+          todosBeingEdited
+          |> List.filter (fun todo -> todo.Id <> todoBeingEdited.Id)
           
-        { state with TodoList = nextTodoList; TodoBeingEdited = None }
+        { state with TodoList = nextTodoList; TodosBeingEdited = nextEditedList }
 
-    | SetEditedDescription newText ->
-      let nextEditModel =
-        state.TodoBeingEdited
-        |> Option.map (fun todoBeingEdited -> { todoBeingEdited with Description = newText })
+    | SetEditedDescription (todoId, newText) ->
+      let nextEditedTodos =
+        state.TodosBeingEdited
+        |> List.map (fun todo -> 
+          if todo.Id = todoId 
+          then { todo with Description = newText } 
+          else todo)
 
-      { state with TodoBeingEdited = nextEditModel }
+      { state with TodosBeingEdited = nextEditedTodos }
 
     | SetListFilter filterKind ->
       let predicate: ListFilterPredicate =
@@ -249,6 +266,10 @@ let todoList (state: State) (dispatch: Msg -> unit) =
       |> List.tryFind (fun todo -> todo.Id = todoBeingEdited.Id)
       |> Option.filter (fun todo -> todo.Description = todoBeingEdited.Description)
       |> Option.isSome
+
+    let currentId = todoBeingEdited.Id
+
+    let setEditedDescriptionFromString text = SetEditedDescription (currentId, text)
       
     div [ "box" ] [
       div [ "field"; "is-grouped" ] [
@@ -256,14 +277,14 @@ let todoList (state: State) (dispatch: Msg -> unit) =
           Html.input [
             prop.classes [ "input"; "is-medium" ]
             prop.valueOrDefault todoBeingEdited.Description
-            prop.onTextChange (SetEditedDescription >> dispatch)
+            prop.onTextChange (setEditedDescriptionFromString >> dispatch)
           ]
         ]
 
         div [ "control"; "buttons" ] [
           Html.button [
             prop.classes [ "button"; if not hasSameDescription then "is-primary" ]
-            prop.onClick (fun _ -> dispatch ApplyEdit)
+            prop.onClick (fun _ -> dispatch (ApplyEdit currentId))
             prop.children [
               Html.i [ prop.classes [ "fa"; "fa-save" ] ]
             ]
@@ -271,7 +292,7 @@ let todoList (state: State) (dispatch: Msg -> unit) =
 
           Html.button [
             prop.classes [ "button"; "is-warning" ]
-            prop.onClick (fun _ -> dispatch CancelEdit)
+            prop.onClick (fun _ -> dispatch (CancelEdit currentId))
             prop.children [
               Html.i [ prop.classes [ "fa"; "fa-arrow-right" ] ]
             ]
@@ -285,10 +306,14 @@ let todoList (state: State) (dispatch: Msg -> unit) =
   Html.ul [
     prop.children [
       for todo in filteredTodos ->
-        match state.TodoBeingEdited with
-        | Some todoBeingEdited when todoBeingEdited.Id = todo.Id ->
-          renderEditForm state dispatch todoBeingEdited
-        | otherwise ->
+        let editedTodoMaybe = 
+          state.TodosBeingEdited
+          |> List.tryFind (fun edited -> todo.Id = edited.Id)
+
+        match editedTodoMaybe with
+        | Some editedTodo -> 
+          renderEditForm state dispatch editedTodo
+        | _ -> 
           renderTodo dispatch todo
     ]
   ]
