@@ -243,7 +243,13 @@ let todoList (state: State) (dispatch: Msg -> unit) =
       ]
     ]
 
-  let renderEditForm (dispatch: Msg -> unit) (todoBeingEdited: TodoBeingEdited) =
+  let renderEditForm (state: State) (dispatch: Msg -> unit) (todoBeingEdited: TodoBeingEdited) =
+    let hasSameDescription =
+      state.TodoList
+      |> List.tryFind (fun todo -> todo.Id = todoBeingEdited.Id)
+      |> Option.filter (fun todo -> todo.Description = todoBeingEdited.Description)
+      |> Option.isSome
+      
     div [ "box" ] [
       div [ "field"; "is-grouped" ] [
         div [ "control"; "is-expanded" ] [
@@ -256,7 +262,7 @@ let todoList (state: State) (dispatch: Msg -> unit) =
 
         div [ "control"; "buttons" ] [
           Html.button [
-            prop.classes [ "button"; "is-primary" ]
+            prop.classes [ "button"; if not hasSameDescription then "is-primary" ]
             prop.onClick (fun _ -> dispatch ApplyEdit)
             prop.children [
               Html.i [ prop.classes [ "fa"; "fa-save" ] ]
@@ -281,7 +287,7 @@ let todoList (state: State) (dispatch: Msg -> unit) =
       for todo in filteredTodos ->
         match state.TodoBeingEdited with
         | Some todoBeingEdited when todoBeingEdited.Id = todo.Id ->
-          renderEditForm dispatch todoBeingEdited
+          renderEditForm state dispatch todoBeingEdited
         | otherwise ->
           renderTodo dispatch todo
     ]
